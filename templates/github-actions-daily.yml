@@ -1,0 +1,48 @@
+# 매일 한국 시각 8시에 자동 실행하는 GitHub Actions 워크플로우
+# 위치: 본인 저장소의 .github/workflows/daily.yml 로 저장
+#
+# 사전 준비 (GitHub Secrets 4개):
+# Repository Settings → Secrets and variables → Actions → New repository secret
+#   - LLM_API_KEY            (LLM API 키)
+#   - DISCORD_WEBHOOK_URL    (디스코드 웹후크 주소)
+#   - GOOGLE_CREDENTIALS     (credentials.json 파일 내용 JSON 그대로)
+#   - SPREADSHEET_ID         (Google Sheets URL의 ID)
+
+name: Daily News Brief
+
+on:
+  schedule:
+    # UTC 기준. 한국 시각 8시 = 전날 UTC 23시 (한국이 9시간 빠름)
+    # 사용자가 시간을 바꾸고 싶으면 아래 cron만 수정
+    - cron: '0 23 * * *'
+  workflow_dispatch:  # 수동 실행 가능 (Actions 탭에서 Run workflow 클릭)
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install feedparser requests gspread google-auth
+
+      - name: Run news brief
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          LLM_ENDPOINT: https://openrouter.ai/api/v1/chat/completions
+          LLM_MODEL: openai/gpt-4o-mini
+          COLLECT_HOURS: '24'
+        run: python main.py
